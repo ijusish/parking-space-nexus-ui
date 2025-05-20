@@ -1,7 +1,6 @@
 
 import { toast } from "sonner";
-
-const API_URL = 'http://localhost:8000/api/v1';
+import { getAuthHeaders, handleApiError, API_URL, ApiResponse } from "./apiUtils";
 
 // Type definitions
 export interface ParkingSlot {
@@ -33,41 +32,24 @@ export interface ParkingSlotOrder {
   parkingSlotVehicle?: ParkingSlotVehicle;
 }
 
-export interface ParkingSlotOrderListResponse {
-  status: string;
-  message: string;
-  data: ParkingSlotOrder[];
+export interface ParkingSlotOrderListResponse extends ApiResponse<ParkingSlotOrder[]> {
   total: number;
   page: number;
   limit: number;
 }
 
-export interface ParkingSlotOrderResponse {
-  status: string;
-  message: string;
-  data: ParkingSlotOrder;
-}
+export interface ParkingSlotOrderResponse extends ApiResponse<ParkingSlotOrder> {}
 
 export interface CreateParkingSlotOrderRequest {
   parkingSlotId: string;
   vehiclePlateNumber: string;
 }
 
-// Helper function to handle API errors
-const handleApiError = (error: any): never => {
-  const message = error?.response?.data?.message || 'An unexpected error occurred';
-  toast.error(message);
-  throw error;
-};
+export type ParkingSlotOrderStatus = "PENDING" | "COMPLETED";
 
-// Function to get auth headers for authenticated requests
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
+export interface UpdateParkingSlotOrderStatusRequest {
+  status: ParkingSlotOrderStatus;
+}
 
 // ParkingSlot Orders API service
 class ParkingSlotOrderApiService {
@@ -129,6 +111,80 @@ class ParkingSlotOrderApiService {
       }
       
       toast.success('Parking slot order created successfully');
+      return data;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  async updateParkingSlotOrderStatus(id: string, statusData: UpdateParkingSlotOrderStatusRequest): Promise<ParkingSlotOrderResponse> {
+    try {
+      const response = await fetch(`${API_URL}/parkingSlot-orders/${id}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(statusData),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        toast.error(data.message || 'Failed to update parking slot order status');
+        throw new Error(data.message);
+      }
+      
+      toast.success('Parking slot order status updated successfully');
+      return data;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  async getParkingSlotOrdersByParkingSlotId(
+    parkingSlotId: string, 
+    page = 1, 
+    limit = 10
+  ): Promise<ParkingSlotOrderListResponse> {
+    try {
+      const url = `${API_URL}/parkingSlot-orders/parkingSlot/${parkingSlotId}?page=${page}&limit=${limit}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        toast.error(data.message || 'Failed to fetch parking slot orders');
+        throw new Error(data.message);
+      }
+      
+      return data;
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }
+
+  async getParkingSlotOrdersByUserId(
+    userId: string, 
+    page = 1, 
+    limit = 10
+  ): Promise<ParkingSlotOrderListResponse> {
+    try {
+      const url = `${API_URL}/parkingSlot-orders/user/${userId}?page=${page}&limit=${limit}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        toast.error(data.message || 'Failed to fetch parking slot orders');
+        throw new Error(data.message);
+      }
+      
       return data;
     } catch (error) {
       return handleApiError(error);

@@ -1,21 +1,22 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { api } from "../services/api";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { authApi } from "../services/authApi";
 import { toast } from "sonner";
 
-interface User {
+export interface User {
   id?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
-  role?: string; // Added role field
+  role?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isAdmin: boolean; // Added admin check
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -27,10 +28,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Check if user is authenticated on mount
@@ -47,15 +50,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: userRole
       });
       setIsAdmin(userRole === 'admin');
+    } else {
+      // Redirect to login if we're on a protected route and no token is found
+      const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify-email'];
+      const resetPasswordRoute = /^\/reset-password\/[A-Za-z0-9-_]+$/;
+      
+      const isPublicRoute = publicRoutes.includes(location.pathname) || resetPasswordRoute.test(location.pathname);
+      
+      if (!isPublicRoute) {
+        navigate('/login', { state: { from: location.pathname } });
+      }
     }
     
     setIsLoading(false);
-  }, []);
+  }, [navigate, location.pathname]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      await api.login({ email, password });
+      await authApi.login({ email, password });
       
       // For demonstration purposes - in a real app you would fetch user profile here
       // We'll simulate an admin user if the email contains 'admin'
@@ -75,6 +88,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAdmin(isAdminUser);
       
       toast.success("Logged in successfully");
+      
+      // Redirect to dashboard or the originally requested page
+      const redirectTo = location.state?.from || '/dashboard';
+      navigate(redirectTo);
     } catch (error) {
       console.error("Login error:", error);
     } finally {
@@ -85,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (firstName: string, lastName: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      await api.register({ firstName, lastName, email, password });
+      await authApi.register({ firstName, lastName, email, password });
       toast.success("Registered successfully! Please verify your email.");
       
       // Store basic user info
@@ -93,6 +110,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('userFirstName', firstName);
       localStorage.setItem('userLastName', lastName);
       localStorage.setItem('userRole', 'user'); // New users are regular users by default
+      
+      // Redirect to verify email page
+      navigate('/verify-email', { state: { email } });
     } catch (error) {
       console.error("Registration error:", error);
     } finally {
@@ -109,38 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setIsAdmin(false);
     toast.success("Logged out successfully");
-  };
-
-  const sendPasswordResetEmail = async (email: string) => {
-    try {
-      await api.sendPasswordResetEmail(email);
-    } catch (error) {
-      console.error("Send password reset email error:", error);
-    }
-  };
-
-  const resetPassword = async (token: string, password: string) => {
-    try {
-      await api.resetPassword(token, password);
-    } catch (error) {
-      console.error("Reset password error:", error);
-    }
-  };
-
-  const verifyEmail = async (token: string, email: string) => {
-    try {
-      await api.verifyEmail(token, email);
-    } catch (error) {
-      console.error("Verify email error:", error);
-    }
-  };
-
-  const sendVerificationEmail = async (email: string) => {
-    try {
-      await api.sendVerificationEmail(email);
-    } catch (error) {
-      console.error("Send verification email error:", error);
-    }
+    navigate('/login');
   };
 
   return (
@@ -153,10 +142,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
-        sendPasswordResetEmail: api.sendPasswordResetEmail,
-        resetPassword: api.resetPassword,
-        verifyEmail: api.verifyEmail,
-        sendVerificationEmail: api.sendVerificationEmail,
+        sendPasswordResetEmail: authApi.sendPasswordResetEmail,
+        resetPassword: authApi.resetPassword,
+        verifyEmail: authApi.verifyEmail,
+        sendVerificationEmail: authApi.sendVerificationEmail,
       }}
     >
       {children}
