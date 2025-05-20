@@ -14,6 +14,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import Dashboard from "./pages/Dashboard";
+import Users from "./pages/Users";
+import ParkingSlotOrders from "./pages/ParkingSlotOrders";
 import NotFound from "./pages/NotFound";
 
 // Layouts
@@ -40,11 +42,11 @@ const App = () => (
             {/* Protected routes */}
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/parking-orders" element={<ParkingSlotOrders />} />
               {/* Add more protected routes here */}
               {/* <Route path="/parking-slots" element={<ParkingSlots />} /> */}
               {/* <Route path="/vehicles" element={<Vehicles />} /> */}
-              {/* <Route path="/bookings" element={<Bookings />} /> */}
-              {/* <Route path="/profile" element={<Profile />} /> */}
             </Route>
 
             {/* Catch-all route */}

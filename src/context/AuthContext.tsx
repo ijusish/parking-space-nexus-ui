@@ -8,12 +8,14 @@ interface User {
   firstName?: string;
   lastName?: string;
   email?: string;
+  role?: string; // Added role field
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean; // Added admin check
   login: (email: string, password: string) => Promise<void>;
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -28,6 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
     // Check if user is authenticated on mount
@@ -36,11 +39,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       // For now we'll just set a dummy user since we don't have an endpoint to fetch user data
       // In a real app, you would fetch the user profile here
+      const userRole = localStorage.getItem('userRole') || 'user';
       setUser({ 
         email: localStorage.getItem('userEmail') || 'user@example.com',
         firstName: localStorage.getItem('userFirstName') || 'User', 
-        lastName: localStorage.getItem('userLastName') || '' 
+        lastName: localStorage.getItem('userLastName') || '',
+        role: userRole
       });
+      setIsAdmin(userRole === 'admin');
     }
     
     setIsLoading(false);
@@ -50,15 +56,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       await api.login({ email, password });
+      
       // For demonstration purposes - in a real app you would fetch user profile here
+      // We'll simulate an admin user if the email contains 'admin'
+      const isAdminUser = email.includes('admin');
+      const role = isAdminUser ? 'admin' : 'user';
+      
       setUser({ 
         email,
         firstName: 'User',
-        lastName: ''
+        lastName: '',
+        role
       });
       
-      // Store email to persist basic user info
+      // Store user info to persist basic user info
       localStorage.setItem('userEmail', email);
+      localStorage.setItem('userRole', role);
+      setIsAdmin(isAdminUser);
       
       toast.success("Logged in successfully");
     } catch (error) {
@@ -78,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('userEmail', email);
       localStorage.setItem('userFirstName', firstName);
       localStorage.setItem('userLastName', lastName);
+      localStorage.setItem('userRole', 'user'); // New users are regular users by default
     } catch (error) {
       console.error("Registration error:", error);
     } finally {
@@ -90,7 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userFirstName');
     localStorage.removeItem('userLastName');
+    localStorage.removeItem('userRole');
     setUser(null);
+    setIsAdmin(false);
     toast.success("Logged out successfully");
   };
 
@@ -132,13 +149,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         isAuthenticated: !!user,
         isLoading,
+        isAdmin,
         login,
         register,
         logout,
-        sendPasswordResetEmail,
-        resetPassword,
-        verifyEmail,
-        sendVerificationEmail,
+        sendPasswordResetEmail: api.sendPasswordResetEmail,
+        resetPassword: api.resetPassword,
+        verifyEmail: api.verifyEmail,
+        sendVerificationEmail: api.sendVerificationEmail,
       }}
     >
       {children}
