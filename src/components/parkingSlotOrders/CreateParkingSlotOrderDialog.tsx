@@ -33,6 +33,8 @@ const orderFormSchema = z.object({
   }),
 });
 
+type OrderFormValues = z.infer<typeof orderFormSchema>;
+
 interface CreateParkingSlotOrderDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -47,7 +49,7 @@ const CreateParkingSlotOrderDialog: React.FC<CreateParkingSlotOrderDialogProps> 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize form
-  const form = useForm<z.infer<typeof orderFormSchema>>({
+  const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
       parkingSlotId: "",
@@ -55,7 +57,7 @@ const CreateParkingSlotOrderDialog: React.FC<CreateParkingSlotOrderDialogProps> 
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof orderFormSchema>) => {
+  const onSubmit = async (values: OrderFormValues) => {
     try {
       setIsSubmitting(true);
       await parkingSlotOrderApi.createParkingSlotOrder(values);
